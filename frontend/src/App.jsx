@@ -1,6 +1,8 @@
 import { Routes, Route } from 'react-router-dom';
 import CampusEchoHomePage from './CampusEchoHomePage';
 import CampusEchoLogin from './CampusEchoLogin';
+import CampusEchoRegistration from "./CampusEchoRegistration";
+
 
 // Simple Login Page
 const Login = () => {
@@ -28,6 +30,9 @@ function App() {
 
       {/* Login page */}
       <Route path="/login" element={<CampusEchoLogin />} />
+
+      {/* Registration page */}
+      <Route path="/register" element={<CampusEchoRegistration />} />
     </Routes>
   );
 }

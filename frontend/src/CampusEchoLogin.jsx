@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from "react-router-dom";
 
 const CampusEchoLogin = () => {
+  const navigate = useNavigate();
+
   const [userType, setUserType] = useState('student'); // 'student' or 'faculty'
   const [formData, setFormData] = useState({
     email: '',
@@ -30,13 +33,13 @@ const CampusEchoLogin = () => {
     }, 1500);
   };
 
-  const handleGoogleLogin = () => {
-    alert('Google OAuth login would be triggered here');
-  };
+  // const handleGoogleLogin = () => {
+  //   alert('Google OAuth login would be triggered here');
+  // };
 
-  const handleMicrosoftLogin = () => {
-    alert('Microsoft OAuth login would be triggered here');
-  };
+  // const handleMicrosoftLogin = () => {
+  //   alert('Microsoft OAuth login would be triggered here');
+  // };
 
   return (
     <div style={styles.container}>
@@ -177,11 +180,11 @@ const CampusEchoLogin = () => {
         </form>
 
         {/* Divider */}
-        <div style={styles.divider}>
+        {/* <div style={styles.divider}>
           <span style={styles.dividerLine}></span>
           <span style={styles.dividerText}>OR CONTINUE WITH</span>
           <span style={styles.dividerLine}></span>
-        </div>
+        </div> */}
 
         {/* Social Login */}
         {/* <div style={styles.socialLogin}>
@@ -198,8 +201,13 @@ const CampusEchoLogin = () => {
         {/* Sign Up Link */}
         <div style={styles.signupSection}>
           <p style={styles.signupText}>
-            Don't have an account?{' '}
-            <a href="#signup" style={styles.signupLink}>Sign up here</a>
+            Don't have an account?{" "}
+            <span
+              style={styles.signupLink}
+              onClick={() => navigate("/register")}
+            >
+              Sign up here
+            </span>
           </p>
         </div>
 
@@ -523,6 +531,7 @@ const styles = {
     textDecoration: 'none',
     fontWeight: 600,
     transition: 'color 0.3s ease',
+    cursor: 'pointer',
   },
   infoBadge: {
     display: 'flex',
