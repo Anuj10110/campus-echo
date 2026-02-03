@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Prefer same-origin /api so dev (Vite proxy) and prod (single origin) both work.
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 class ApiService {
   constructor() {
@@ -264,6 +265,20 @@ class ApiService {
     return this.request('/faculty/attendance', {
       method: 'POST',
       body: attendanceData,
+    });
+  }
+
+  // Voice endpoints
+  async processVoiceQuery(query) {
+    return this.request('/voice/query', {
+      method: 'POST',
+      body: { query },
+    });
+  }
+
+  async getVoiceHistory() {
+    return this.request('/voice/history', {
+      method: 'GET',
     });
   }
 }

@@ -1,28 +1,70 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import apiService from '../services/api';
 
 const FacultyDashboard = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [showNoticeForm, setShowNoticeForm] = useState(false);
   const [notice, setNotice] = useState({ title: '', content: '' });
+  const [noticeStatus, setNoticeStatus] = useState('');
+  const [noticeSubmitting, setNoticeSubmitting] = useState(false);
 
-  if (!isAuthenticated) {
-    navigate('/login');
-    return null;
-  }
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let cancelled = false;
+    (async () => {
+      setStudentsLoading(true);
+      try {
+        const resp = await apiService.getStudents();
+        if (!cancelled) setStudents(resp?.data?.students || []);
+      } catch {
+        if (!cancelled) setStudents([]);
+      } finally {
+        if (!cancelled) setStudentsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
-  const handleCreateNotice = (e) => {
+  const handleCreateNotice = async (e) => {
     e.preventDefault();
-    alert('Notice created: ' + notice.title);
-    setNotice({ title: '', content: '' });
-    setShowNoticeForm(false);
+
+    setNoticeSubmitting(true);
+    setNoticeStatus('');
+    try {
+      const resp = await apiService.createNotice(notice);
+      if (resp?.success) {
+        setNoticeStatus('✅ Notice posted successfully.');
+        setNotice({ title: '', content: '' });
+        setShowNoticeForm(false);
+      } else {
+        setNoticeStatus(resp?.message || 'Failed to post notice.');
+      }
+    } catch (err) {
+      setNoticeStatus(err?.message || 'Failed to post notice.');
+    } finally {
+      setNoticeSubmitting(false);
+    }
   };
 
   return (
@@ -65,29 +107,52 @@ const FacultyDashboard = () => {
           </div>
 
           <div style={styles.card}>
-            <h3 style={styles.cardTitle}>📋 My Notices</h3>
-            <p style={styles.cardContent}>
-              View and manage notices you have posted.
-            </p>
-            <button style={styles.cardBtn}>View Notices →</button>
-          </div>
-
-          <div style={styles.card}>
             <h3 style={styles.cardTitle}>👥 Student List</h3>
             <p style={styles.cardContent}>
-              View list of students enrolled in your courses.
+              Students currently available from the backend API.
             </p>
-            <button style={styles.cardBtn}>View Students →</button>
+            <div style={styles.miniText}>
+              {studentsLoading ? 'Loading…' : `${students.length} students found`}
+            </div>
           </div>
 
           <div style={styles.card}>
             <h3 style={styles.cardTitle}>✅ Mark Attendance</h3>
             <p style={styles.cardContent}>
-              Take attendance for your classes and sessions.
+              Attendance endpoint is ready (wire it to your UI when needed).
             </p>
-            <button style={styles.cardBtn}>Attendance →</button>
+            <div style={styles.miniText}>POST /api/faculty/attendance</div>
+          </div>
+
+          <div style={styles.card}>
+            <h3 style={styles.cardTitle}>📡 Backend Status</h3>
+            <p style={styles.cardContent}>
+              Your frontend is now calling real backend endpoints.
+            </p>
+            <div style={styles.miniText}>API base: /api</div>
           </div>
         </div>
+
+        {/* Students */}
+        <div style={styles.dataBox}>
+          <h3 style={styles.infoTitle}>Students</h3>
+          {studentsLoading ? (
+            <div style={styles.miniText}>Loading…</div>
+          ) : students.length === 0 ? (
+            <div style={styles.miniText}>No students returned by the API.</div>
+          ) : (
+            <ul style={styles.miniList}>
+              {students.map((s) => (
+                <li key={s.id} style={styles.miniListItem}>
+                  <span>{s.name}</span>
+                  <span style={styles.miniPill}>{s.rollNumber}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {noticeStatus && <div style={styles.statusBox}>{noticeStatus}</div>}
 
         {/* Notice Creation Form */}
         {showNoticeForm && (
@@ -117,8 +182,8 @@ const FacultyDashboard = () => {
                 />
               </div>
 
-              <button type="submit" style={styles.submitBtn}>
-                Post Notice
+              <button type="submit" style={styles.submitBtn} disabled={noticeSubmitting}>
+                {noticeSubmitting ? 'Posting…' : 'Post Notice'}
               </button>
             </form>
           </div>
@@ -335,6 +400,47 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
     gap: '20px',
+  },
+  dataBox: {
+    background: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    borderRadius: '16px',
+    padding: '24px',
+    marginBottom: '24px',
+  },
+  statusBox: {
+    background: 'rgba(34, 197, 94, 0.08)',
+    border: '1px solid rgba(34, 197, 94, 0.25)',
+    borderRadius: '12px',
+    padding: '12px 16px',
+    color: '#bbf7d0',
+    marginBottom: '24px',
+  },
+  miniText: {
+    fontSize: '13px',
+    color: '#d1d5db',
+    lineHeight: 1.6,
+  },
+  miniList: {
+    margin: 0,
+    paddingLeft: '18px',
+    color: '#d1d5db',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  miniListItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '12px',
+  },
+  miniPill: {
+    color: '#9ca3af',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '999px',
+    padding: '0 10px',
+    fontSize: '12px',
+    whiteSpace: 'nowrap',
   },
 };
 

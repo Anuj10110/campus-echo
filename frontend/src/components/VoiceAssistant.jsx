@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import apiService from '../services/api';
 
 const VoiceAssistant = () => {
   const [isListening, setIsListening] = useState(false);
@@ -65,32 +66,41 @@ const VoiceAssistant = () => {
     }
   };
 
+  // Load history from backend (requires auth)
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const resp = await apiService.getVoiceHistory();
+        if (resp?.success && Array.isArray(resp.data)) {
+          setHistory(
+            resp.data
+              .filter((q) => q?.query)
+              .map((q) => ({ query: q.query, response: q.response || '' }))
+          );
+        }
+      } catch {
+        // ignore: voice history isn't critical to render the dashboard
+      }
+    })();
+  }, []);
+
   const processVoiceQuery = async () => {
     if (!transcript.trim()) return;
 
     setIsProcessing(true);
     try {
-      // Simulate AI response (in production, send to backend API)
-      const query = transcript.toLowerCase();
-      let aiResponse = '';
+      const result = await apiService.processVoiceQuery(transcript);
 
-      // Simple response logic
-      if (query.includes('notice')) {
-        aiResponse = 'You have 3 new campus notices. The latest is about the upcoming hackathon next month. Would you like me to read the details?';
-      } else if (query.includes('deadline')) {
-        aiResponse = 'You have 2 upcoming deadlines: CS Assignment due tomorrow at 5 PM, and Math Project due on Friday.';
-      } else if (query.includes('exam')) {
-        aiResponse = 'Your next exam is Data Structures on February 15th. You have 12 days to prepare.';
-      } else if (query.includes('schedule') || query.includes('class')) {
-        aiResponse = 'Your classes today are: Programming at 9 AM, Data Structures at 11 AM, and Web Development at 2 PM.';
-      } else {
-        aiResponse = `I understood you said: "${transcript}". How can I help you with campus information?`;
+      if (!result?.success) {
+        setResponse(result?.message || 'Failed to process your voice query.');
+        return;
       }
 
+      const aiResponse = result.data?.response || 'No response generated.';
       setResponse(aiResponse);
-      
-      // Add to history
-      setHistory([...history, { query: transcript, response: aiResponse }]);
+
+      // Keep local history in sync immediately; backend history will also record it.
+      setHistory((prev) => [{ query: transcript, response: aiResponse }, ...prev].slice(0, 20));
 
       // Text-to-speech
       speakResponse(aiResponse);

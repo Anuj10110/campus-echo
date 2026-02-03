@@ -3,6 +3,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 import authRoutes from './routes/authRoutes.js';
 import studentRoutes from './routes/studentRoutes.js';
@@ -72,17 +74,33 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Root route
-app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Welcome to Campus Echo API',
-    version: '1.0.0',
-    documentation: '/api/docs'
+// In dev, keep a simple root API message. In production, serve the frontend.
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/', (req, res) => {
+    res.json({
+      success: true,
+      message: 'Welcome to Campus Echo API',
+      version: '1.0.0'
+    });
   });
-});
+}
 
-// 404 handler
+// Serve frontend build in production (single deployable artifact)
+if (process.env.NODE_ENV === 'production') {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const frontendDist = path.join(__dirname, '..', '..', 'frontend', 'dist');
+
+  app.use(express.static(frontendDist));
+
+  // SPA fallback (must be after API routes)
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}
+
+// 404 handler (API only)
 app.use((req, res) => {
   res.status(404).json({
     success: false,

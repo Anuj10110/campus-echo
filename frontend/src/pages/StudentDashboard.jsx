@@ -1,16 +1,57 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import VoiceAssistant from '../components/VoiceAssistant';
+import apiService from '../services/api';
 
 const StudentDashboard = () => {
   const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  if (!isAuthenticated) {
-    navigate('/login');
-    return null;
-  }
+  const [notices, setNotices] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState('');
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let cancelled = false;
+    (async () => {
+      setDataLoading(true);
+      setDataError('');
+
+      try {
+        const [n, e, r] = await Promise.all([
+          apiService.getNotices(),
+          apiService.getEvents(),
+          apiService.getResources(),
+        ]);
+
+        if (cancelled) return;
+
+        setNotices(n?.data?.notices || []);
+        setEvents(e?.data?.events || []);
+        setResources(r?.data?.resources || []);
+      } catch (err) {
+        if (cancelled) return;
+        setDataError(err?.message || 'Failed to load dashboard data.');
+      } finally {
+        if (!cancelled) setDataLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
 
   const handleLogout = async () => {
     await logout();
@@ -51,7 +92,18 @@ const StudentDashboard = () => {
             <p style={styles.cardContent}>
               View all important announcements and notices from your college administration.
             </p>
-            <button style={styles.cardBtn}>View Notices →</button>
+            {dataLoading ? (
+              <p style={styles.miniText}>Loading…</p>
+            ) : (
+              <ul style={styles.miniList}>
+                {(notices || []).slice(0, 3).map((n) => (
+                  <li key={n.id} style={styles.miniListItem}>
+                    <span>{n.title}</span>
+                    <span style={styles.miniDate}>{n.date}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div style={styles.card}>
@@ -59,7 +111,18 @@ const StudentDashboard = () => {
             <p style={styles.cardContent}>
               Stay updated with upcoming events, seminars, and workshops on campus.
             </p>
-            <button style={styles.cardBtn}>View Events →</button>
+            {dataLoading ? (
+              <p style={styles.miniText}>Loading…</p>
+            ) : (
+              <ul style={styles.miniList}>
+                {(events || []).slice(0, 3).map((ev) => (
+                  <li key={ev.id} style={styles.miniListItem}>
+                    <span>{ev.title}</span>
+                    <span style={styles.miniDate}>{ev.date}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div style={styles.card}>
@@ -67,7 +130,18 @@ const StudentDashboard = () => {
             <p style={styles.cardContent}>
               Access study materials, lecture notes, and learning resources from faculty.
             </p>
-            <button style={styles.cardBtn}>View Resources →</button>
+            {dataLoading ? (
+              <p style={styles.miniText}>Loading…</p>
+            ) : (
+              <ul style={styles.miniList}>
+                {(resources || []).slice(0, 3).map((res) => (
+                  <li key={res.id} style={styles.miniListItem}>
+                    <span>{res.title}</span>
+                    <span style={styles.miniPill}>{res.type}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div style={styles.card}>
@@ -75,9 +149,18 @@ const StudentDashboard = () => {
             <p style={styles.cardContent}>
               View and manage your profile information and academic details.
             </p>
-            <button style={styles.cardBtn}>Edit Profile →</button>
+            <div style={styles.miniText}>
+              <div><strong>Email:</strong> {user?.email}</div>
+              <div><strong>Year:</strong> {user?.profile?.year}</div>
+            </div>
           </div>
         </div>
+
+        {dataError && (
+          <div style={styles.errorBox}>
+            <strong>Dashboard data error:</strong> {dataError}
+          </div>
+        )}
 
         {/* Voice Assistant */}
         <VoiceAssistant />
@@ -245,6 +328,44 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
     gap: '20px',
+  },
+  errorBox: {
+    background: 'rgba(239, 68, 68, 0.08)',
+    border: '1px solid rgba(239, 68, 68, 0.25)',
+    borderRadius: '12px',
+    padding: '12px 16px',
+    color: '#fecaca',
+    marginBottom: '24px',
+  },
+  miniText: {
+    fontSize: '13px',
+    color: '#d1d5db',
+    lineHeight: 1.6,
+  },
+  miniList: {
+    margin: 0,
+    paddingLeft: '18px',
+    color: '#d1d5db',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  miniListItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: '12px',
+  },
+  miniDate: {
+    color: '#9ca3af',
+    whiteSpace: 'nowrap',
+  },
+  miniPill: {
+    color: '#9ca3af',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '999px',
+    padding: '0 10px',
+    fontSize: '12px',
+    whiteSpace: 'nowrap',
   },
 };
 
