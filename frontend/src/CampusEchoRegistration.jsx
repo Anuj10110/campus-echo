@@ -321,7 +321,13 @@ const Registration = () => {
               </button>
 
               <div style={styles.formFooter}>
-                Already have an account? <a href="#" style={styles.formLink}>Login</a>
+                Already have an account? 
+                  <span
+              style={styles.signupLink}
+              onClick={() => navigate("/Login")}
+            >
+              Login
+            </span>
               </div>
             </form>
           </div>
@@ -461,7 +467,13 @@ const Registration = () => {
               </button>
 
               <div style={styles.formFooter}>
-                Already have an account? <a href="#" style={styles.formLink}>Login</a>
+                Already have an account? 
+                <span
+              style={styles.signupLink}
+              onClick={() => navigate("/Login")}
+            >
+               Login
+            </span>
               </div>
             </form>
           </div>
@@ -718,7 +730,7 @@ const styles = {
     color: '#9ca3af',
     fontSize: '0.95rem',
   },
-  formLink: {
+  signupLink: {
     color: '#06b6d4',
     textDecoration: 'none',
     fontWeight: 600,
