@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const CampusEchoHomePage = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -25,13 +26,16 @@ const CampusEchoHomePage = () => {
     };
   }, []);
 
+  const navigate = useNavigate();
+
   const scrollToSection = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleLaunch = () => {
-    alert('🚀 Launching Campus Echo App...\n\nRedirecting to the app interface!');
+    navigate('/login');
   };
+
 
   return (
     <div style={styles.app}>

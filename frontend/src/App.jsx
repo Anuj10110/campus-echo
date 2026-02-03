@@ -1,8 +1,35 @@
-import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import CampusEchoHomePage from './CampusEchoHomePage';
+import CampusEchoLogin from './CampusEchoLogin';
+
+// Simple Login Page
+const Login = () => {
+  return (
+    <div style={{
+      minHeight: '100vh',
+      background: '#0B0F14',
+      color: 'white',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '32px',
+      fontWeight: '700'
+    }}>
+      Login Page
+    </div>
+  );
+};
 
 function App() {
-  return <CampusEchoHomePage />;
+  return (
+    <Routes>
+      {/* Homepage should open first */}
+      <Route path="/" element={<CampusEchoHomePage />} />
+
+      {/* Login page */}
+      <Route path="/login" element={<CampusEchoLogin />} />
+    </Routes>
+  );
 }
 
 export default App;
