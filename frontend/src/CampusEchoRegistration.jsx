@@ -321,8 +321,7 @@ const Registration = () => {
               </button>
 
               <div style={styles.formFooter}>
-                Already have an account? 
-                  <span
+                Already have an account? <span
               style={styles.signupLink}
               onClick={() => navigate("/Login")}
             >
@@ -467,12 +466,11 @@ const Registration = () => {
               </button>
 
               <div style={styles.formFooter}>
-                Already have an account? 
-                <span
+                Already have an account? <span
               style={styles.signupLink}
               onClick={() => navigate("/Login")}
             >
-               Login
+              Login
             </span>
               </div>
             </form>
@@ -731,9 +729,10 @@ const styles = {
     fontSize: '0.95rem',
   },
   signupLink: {
-    color: '#06b6d4',
+    color: '#09bcdc',
     textDecoration: 'none',
     fontWeight: 600,
+    cursor: 'pointer',
   },
 };
 
