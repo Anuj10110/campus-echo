@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
+import { useAuth } from './context/AuthContext';
 
 const CampusEchoLogin = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [userType, setUserType] = useState('student'); // 'student' or 'faculty'
   const [formData, setFormData] = useState({
@@ -12,6 +14,7 @@ const CampusEchoLogin = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;

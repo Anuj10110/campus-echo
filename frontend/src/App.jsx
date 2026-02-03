@@ -2,38 +2,45 @@ import { Routes, Route } from 'react-router-dom';
 import CampusEchoHomePage from './CampusEchoHomePage';
 import CampusEchoLogin from './CampusEchoLogin';
 import CampusEchoRegistration from "./CampusEchoRegistration";
-
-
-// Simple Login Page
-const Login = () => {
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#0B0F14',
-      color: 'white',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '32px',
-      fontWeight: '700'
-    }}>
-      Login Page
-    </div>
-  );
-};
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import StudentDashboard from './pages/StudentDashboard';
+import FacultyDashboard from './pages/FacultyDashboard';
 
 function App() {
   return (
-    <Routes>
-      {/* Homepage should open first */}
-      <Route path="/" element={<CampusEchoHomePage />} />
+    <AuthProvider>
+      <Routes>
+        {/* Homepage should open first */}
+        <Route path="/" element={<CampusEchoHomePage />} />
 
-      {/* Login page */}
-      <Route path="/login" element={<CampusEchoLogin />} />
+        {/* Login page */}
+        <Route path="/login" element={<CampusEchoLogin />} />
 
-      {/* Registration page */}
-      <Route path="/register" element={<CampusEchoRegistration />} />
-    </Routes>
+        {/* Registration page */}
+        <Route path="/register" element={<CampusEchoRegistration />} />
+
+        {/* Protected Student Dashboard */}
+        <Route 
+          path="/student/dashboard" 
+          element={
+            <ProtectedRoute requiredRole="STUDENT">
+              <StudentDashboard />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* Protected Faculty Dashboard */}
+        <Route 
+          path="/faculty/dashboard" 
+          element={
+            <ProtectedRoute requiredRole="FACULTY">
+              <FacultyDashboard />
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+    </AuthProvider>
   );
 }
 
