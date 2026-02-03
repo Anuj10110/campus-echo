@@ -4,18 +4,50 @@ class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
     this.accessToken = null;
+    this.refreshToken = null;
   }
 
   setAccessToken(token) {
     this.accessToken = token;
+    if (token) {
+      sessionStorage.setItem('accessToken', token);
+    }
   }
 
   getAccessToken() {
+    if (!this.accessToken) {
+      this.accessToken = sessionStorage.getItem('accessToken');
+    }
     return this.accessToken;
+  }
+
+  setRefreshToken(token) {
+    this.refreshToken = token;
+    if (token) {
+      localStorage.setItem('refreshToken', token);
+    }
+  }
+
+  getRefreshToken() {
+    if (!this.refreshToken) {
+      this.refreshToken = localStorage.getItem('refreshToken');
+    }
+    return this.refreshToken;
   }
 
   clearAccessToken() {
     this.accessToken = null;
+    sessionStorage.removeItem('accessToken');
+  }
+
+  clearRefreshToken() {
+    this.refreshToken = null;
+    localStorage.removeItem('refreshToken');
+  }
+
+  clearAll() {
+    this.clearAccessToken();
+    this.clearRefreshToken();
   }
 
   async request(endpoint, options = {}) {
@@ -25,8 +57,9 @@ class ApiService {
       ...options.headers,
     };
 
-    if (this.accessToken && !options.skipAuth) {
-      headers.Authorization = `Bearer ${this.accessToken}`;
+    const accessToken = this.getAccessToken();
+    if (accessToken && !options.skipAuth) {
+      headers.Authorization = `Bearer ${accessToken}`;
     }
 
     const config = {
@@ -51,8 +84,9 @@ class ApiService {
             this.setAccessToken(refreshResp.data.accessToken);
             // retry original request with new token
             const retryHeaders = { ...headers };
-            if (this.accessToken && !options.skipAuth) {
-              retryHeaders.Authorization = `Bearer ${this.accessToken}`;
+            const newAccessToken = this.getAccessToken();
+            if (newAccessToken && !options.skipAuth) {
+              retryHeaders.Authorization = `Bearer ${newAccessToken}`;
             }
             const retryConfig = {
               ...config,
@@ -66,6 +100,7 @@ class ApiService {
           }
         } catch (err) {
           // fall through to throw original 401
+          this.clearAll();
         }
       }
 
@@ -106,6 +141,9 @@ class ApiService {
 
     if (response.success && response.data.accessToken) {
       this.setAccessToken(response.data.accessToken);
+      if (response.data.refreshToken) {
+        this.setRefreshToken(response.data.refreshToken);
+      }
     }
 
     return response;
@@ -116,13 +154,15 @@ class ApiService {
       method: 'POST',
     });
 
-    this.clearAccessToken();
+    this.clearAll();
     return response;
   }
 
   async refreshToken() {
+    const storedRefreshToken = this.getRefreshToken();
     const response = await this.request('/auth/refresh', {
       method: 'POST',
+      body: storedRefreshToken ? { refreshToken: storedRefreshToken } : {},
       skipAuth: true,
     });
 

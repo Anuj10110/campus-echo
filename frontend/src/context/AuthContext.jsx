@@ -15,20 +15,48 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
+      console.log('[Auth] Checking authentication status...');
+      
+      // Try to restore from localStorage first
+      const storedRefreshToken = localStorage.getItem('refreshToken');
+      const storedAccessToken = sessionStorage.getItem('accessToken');
+      
+      console.log('[Auth] Stored tokens:', { 
+        hasAccessToken: !!storedAccessToken, 
+        hasRefreshToken: !!storedRefreshToken 
+      });
+      
+      if (storedAccessToken) {
+        apiService.setAccessToken(storedAccessToken);
+      }
+      if (storedRefreshToken) {
+        apiService.setRefreshToken(storedRefreshToken);
+      }
+      
       // Try to refresh token
       const refreshResponse = await apiService.refreshToken();
       
-      if (refreshResponse.success) {
+      if (refreshResponse && refreshResponse.success) {
+        console.log('[Auth] Token refresh successful');
         // Get user data
         const userResponse = await apiService.getCurrentUser();
         
-        if (userResponse.success) {
+        if (userResponse && userResponse.success) {
+          console.log('[Auth] User data retrieved:', userResponse.data);
           setUser(userResponse.data);
           setIsAuthenticated(true);
+        } else {
+          console.log('[Auth] Failed to get user data');
+          setIsAuthenticated(false);
+          setUser(null);
         }
+      } else {
+        console.log('[Auth] Token refresh failed or returned falsy response');
+        setIsAuthenticated(false);
+        setUser(null);
       }
     } catch (error) {
-      console.log('Not authenticated');
+      console.log('[Auth] Not authenticated:', error.message);
       setIsAuthenticated(false);
       setUser(null);
     } finally {
