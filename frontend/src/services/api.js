@@ -41,7 +41,33 @@ class ApiService {
 
     try {
       const response = await fetch(url, config);
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+
+      // If unauthorized, try refresh once (don't refresh when calling refresh endpoint)
+      if (response.status === 401 && endpoint !== '/auth/refresh' && !options._retry) {
+        try {
+          const refreshResp = await this.refreshToken();
+          if (refreshResp && refreshResp.success && refreshResp.data?.accessToken) {
+            this.setAccessToken(refreshResp.data.accessToken);
+            // retry original request with new token
+            const retryHeaders = { ...headers };
+            if (this.accessToken && !options.skipAuth) {
+              retryHeaders.Authorization = `Bearer ${this.accessToken}`;
+            }
+            const retryConfig = {
+              ...config,
+              headers: retryHeaders,
+              _retry: true
+            };
+            const retryResponse = await fetch(url, retryConfig);
+            const retryData = await retryResponse.json().catch(() => ({}));
+            if (!retryResponse.ok) throw { status: retryResponse.status, ...retryData };
+            return retryData;
+          }
+        } catch (err) {
+          // fall through to throw original 401
+        }
+      }
 
       if (!response.ok) {
         throw { status: response.status, ...data };

@@ -27,13 +27,26 @@ const CampusEchoLogin = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
-    // Simulate login API call
-    setTimeout(() => {
-      console.log('Login submitted:', { userType, ...formData });
-      alert(`${userType === 'student' ? 'Student' : 'Faculty'} Login Successful!\n\nEmail: ${formData.email}`);
-      setIsLoading(false);
-    }, 1500);
+
+    (async () => {
+      try {
+        const result = await login(formData.email, formData.password);
+        if (result.success) {
+          // Redirect to appropriate dashboard based on role
+          const role = result.data?.user?.userType?.toLowerCase();
+          if (role === 'student') navigate('/student/dashboard');
+          else if (role === 'faculty') navigate('/faculty/dashboard');
+          else navigate('/');
+        } else {
+          setError(result.message || 'Login failed');
+        }
+      } catch (err) {
+        console.error('Login error', err);
+        setError(err.message || 'Login failed');
+      } finally {
+        setIsLoading(false);
+      }
+    })();
   };
 
   // const handleGoogleLogin = () => {
@@ -98,6 +111,14 @@ const CampusEchoLogin = () => {
               : 'Manage your classes and student interactions'}
           </p>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div style={styles.errorAlert}>
+            <span style={styles.errorIcon}>⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} style={styles.form}>
@@ -182,25 +203,6 @@ const CampusEchoLogin = () => {
           </button>
         </form>
 
-        {/* Divider */}
-        {/* <div style={styles.divider}>
-          <span style={styles.dividerLine}></span>
-          <span style={styles.dividerText}>OR CONTINUE WITH</span>
-          <span style={styles.dividerLine}></span>
-        </div> */}
-
-        {/* Social Login */}
-        {/* <div style={styles.socialLogin}>
-          <button style={styles.socialButton} onClick={handleGoogleLogin}>
-            <span style={styles.socialIcon}>🔴</span>
-            <span>Google</span>
-          </button>
-          <button style={styles.socialButton} onClick={handleMicrosoftLogin}>
-            <span style={styles.socialIcon}>🔷</span>
-            <span>Microsoft</span>
-          </button>
-        </div> */}
-
         {/* Sign Up Link */}
         <div style={styles.signupSection}>
           <p style={styles.signupText}>
@@ -214,17 +216,11 @@ const CampusEchoLogin = () => {
           </p>
         </div>
 
-        {/* Info Badge */}
-        {/* <div style={styles.infoBadge}>
-          <span style={styles.lockIcon}>🔒</span>
-          <span style={styles.infoText}>Secure login with end-to-end encryption</span>
-        </div> */}
+        {/* Back to Home Link */}
+        <a href="/" style={styles.backLink}>
+          ← Back to Home
+        </a>
       </div>
-
-      {/* Back to Home Link */}
-      <a href="/" style={styles.backLink}>
-        ← Back to Home
-      </a>
     </div>
   );
 };
@@ -237,7 +233,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#0B0F14',
-    fontFamily: "'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    fontFamily: '"Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     padding: '20px',
     position: 'relative',
     overflow: 'hidden',
@@ -378,6 +374,21 @@ const styles = {
   welcomeSubtitle: {
     fontSize: '14px',
     color: '#9ca3af',
+  },
+  errorAlert: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px 16px',
+    background: 'rgba(239, 68, 68, 0.1)',
+    border: '1px solid rgba(239, 68, 68, 0.3)',
+    borderRadius: '12px',
+    color: '#ef4444',
+    fontSize: '14px',
+    marginBottom: '24px',
+  },
+  errorIcon: {
+    fontSize: '16px',
   },
   form: {
     marginBottom: '24px',

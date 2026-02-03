@@ -11,7 +11,9 @@ const passwordSchema = Joi.string()
 
 export const studentRegistrationSchema = Joi.object({
   fullName: Joi.string().required().trim(),
-  email: Joi.string().email().required().trim(),
+  email: Joi.string().email().required().trim().pattern(/@college\.edu$/i).messages({
+    'string.pattern.base': 'Email must be a college email ending with @college.edu'
+  }),
   rollNumber: Joi.string().required().trim(),
   department: Joi.string().required(),
   year: Joi.string().required(),
@@ -22,7 +24,9 @@ export const studentRegistrationSchema = Joi.object({
 
 export const facultyRegistrationSchema = Joi.object({
   fullName: Joi.string().required().trim(),
-  email: Joi.string().email().required().trim(),
+  email: Joi.string().email().required().trim().pattern(/@college\.edu$/i).messages({
+    'string.pattern.base': 'Email must be a college email ending with @college.edu'
+  }),
   employeeId: Joi.string().required().trim(),
   department: Joi.string().required(),
   designation: Joi.string().required(),

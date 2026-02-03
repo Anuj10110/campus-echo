@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from "react-router-dom";
+import { useAuth } from './context/AuthContext';
 
 /**
  * Campus Echo Registration Component
@@ -12,6 +13,8 @@ import { useNavigate } from "react-router-dom";
 
 const Registration = () => {
   const navigate = useNavigate();
+  const { registerStudent, registerFaculty } = useAuth();
+  
   // State management
   const [currentView, setCurrentView] = useState('selection'); // 'selection', 'student', 'faculty'
   const [formData, setFormData] = useState({
@@ -26,6 +29,8 @@ const Registration = () => {
     password: '',
     confirmPassword: ''
   });
+  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
   // Handle input changes
   const handleInputChange = (e) => {
@@ -50,60 +55,85 @@ const Registration = () => {
       password: '',
       confirmPassword: ''
     });
+    setErrors({});
   };
 
   // Handle student registration submission
-  const handleStudentSubmit = (e) => {
+  const handleStudentSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate passwords match
+
+    if (!formData.email.toLowerCase().endsWith('@college.edu')) {
+      alert('Please use your college email ending with @college.edu');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       alert('❌ Passwords do not match!');
       return;
     }
 
-    // Success message
-    alert('✅ Student registration successful!\n\nYour account has been created.');
-    
-    // Log data (replace with actual API call)
-    console.log('Student Registration Data:', {
-      fullName: formData.fullName,
-      email: formData.email,
-      rollNumber: formData.rollNumber,
-      department: formData.department,
-      year: formData.year,
-      phone: formData.phone
-    });
+    try {
+      const response = await registerStudent({
+        fullName: formData.fullName,
+        email: formData.email,
+        rollNumber: formData.rollNumber,
+        department: formData.department,
+        year: formData.year,
+        phone: formData.phone,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword
+      });
 
-    // Reset form
-    resetForm();
+      if (response.success) {
+        alert('✅ Registration successful. Please verify your email before logging in.');
+        resetForm();
+        navigate('/login');
+      } else {
+        alert(response.message || 'Registration failed');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Registration failed. Please try again.');
+    }
   };
 
   // Handle faculty registration submission
-  const handleFacultySubmit = (e) => {
+  const handleFacultySubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate passwords match
+
+    if (!formData.email.toLowerCase().endsWith('@college.edu')) {
+      alert('Please use your official college email ending with @college.edu');
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       alert('❌ Passwords do not match!');
       return;
     }
 
-    // Success message
-    alert('✅ Faculty registration successful!\n\nYour account has been created.');
-    
-    // Log data (replace with actual API call)
-    console.log('Faculty Registration Data:', {
-      fullName: formData.fullName,
-      email: formData.email,
-      employeeId: formData.employeeId,
-      department: formData.department,
-      designation: formData.designation,
-      phone: formData.phone
-    });
+    try {
+      const response = await registerFaculty({
+        fullName: formData.fullName,
+        email: formData.email,
+        employeeId: formData.employeeId,
+        department: formData.department,
+        designation: formData.designation,
+        phone: formData.phone,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword
+      });
 
-    // Reset form
-    resetForm();
+      if (response.success) {
+        alert('✅ Registration successful. Please verify your email before logging in.');
+        resetForm();
+        navigate('/login');
+      } else {
+        alert(response.message || 'Registration failed');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Registration failed. Please try again.');
+    }
   };
 
   // Navigation functions

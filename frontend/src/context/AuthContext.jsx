@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
       return { 
         success: false, 
         message: error.message || 'Registration failed. Please try again.',
-        errors: error.errors 
+        errors: error.errors || []
       };
     }
   };
@@ -88,7 +88,7 @@ export const AuthProvider = ({ children }) => {
       return { 
         success: false, 
         message: error.message || 'Registration failed. Please try again.',
-        errors: error.errors 
+        errors: error.errors || []
       };
     }
   };
