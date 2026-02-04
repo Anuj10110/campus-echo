@@ -1,9 +1,30 @@
-// Prefer same-origin /api so dev (Vite proxy) and prod (single origin) both work.
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// For network access, use the actual backend URL from environment or auto-detect
+function getAPIBaseURL() {
+  // 1. Check if explicitly set in environment
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // 2. In development, try to detect if accessing from another machine
+  if (import.meta.env.DEV) {
+    // If the current host is not localhost, use direct URL to backend
+    const hostname = window.location.hostname;
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      // Accessing from another machine on the network
+      return `http://${hostname}:5000/api`;
+    }
+  }
+  
+  // 3. Default to proxy for localhost
+  return '/api';
+}
+
+const API_BASE_URL = getAPIBaseURL();
 
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    console.log('[API] Using base URL:', this.baseURL);
     this.accessToken = null;
     // IMPORTANT: don't name this "refreshToken" (it would shadow the refreshToken() method)
     this.refreshTokenValue = null;
@@ -82,6 +103,7 @@ class ApiService {
     }
 
     try {
+      console.log('[API] Requesting:', url, config);
       const response = await fetch(url, config);
       const data = await response.json().catch(() => ({}));
 
@@ -119,7 +141,15 @@ class ApiService {
 
       return data;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('[API] Error fetching', url, ':', error);
+      if (error instanceof TypeError) {
+        // Network error or CORS issue
+        console.error('[API] Network/CORS Error - Is backend running at', url, '?');
+        throw {
+          message: `Failed to connect to server at ${url}. Is the backend running?`,
+          originalError: error
+        };
+      }
       throw error;
     }
   }
