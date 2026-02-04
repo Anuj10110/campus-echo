@@ -3,19 +3,35 @@ import apiService from '../services/api';
 
 const VoiceAssistant = () => {
   const [isListening, setIsListening] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [sttMode, setSttMode] = useState('speech'); // 'speech' | 'record' | 'none'
   const [transcript, setTranscript] = useState('');
+  const [textQuery, setTextQuery] = useState('');
   const [response, setResponse] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [history, setHistory] = useState([]);
-  const recognitionRef = useRef(null);
 
-  // Initialize Web Speech API
+  const recognitionRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const chunksRef = useRef([]);
+
+  // Initialize Web Speech API (primary STT when available)
   React.useEffect(() => {
-    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
-      console.warn('Speech Recognition not supported');
+    const speechSupported = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+    if (!speechSupported) {
+      console.warn('Speech Recognition not supported; will use recording upload if possible.');
+
+      const recordSupported =
+        !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) &&
+        typeof window.MediaRecorder !== 'undefined';
+
+      setSttMode(recordSupported ? 'record' : 'none');
       return;
     }
 
+    setSttMode('speech');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
@@ -52,17 +68,85 @@ const VoiceAssistant = () => {
     };
   }, []);
 
-  const startListening = () => {
-    if (recognitionRef.current) {
-      setTranscript('');
-      setResponse('');
+  const startRecording = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaStreamRef.current = stream;
+
+    const recorder = new MediaRecorder(stream);
+    chunksRef.current = [];
+
+    recorder.ondataavailable = (evt) => {
+      if (evt.data && evt.data.size > 0) {
+        chunksRef.current.push(evt.data);
+      }
+    };
+
+    recorder.onstop = async () => {
+      try {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        chunksRef.current = [];
+
+        setIsProcessing(true);
+        const resp = await apiService.transcribeAudio(blob, 'recording.webm');
+        if (!resp?.success) {
+          setResponse(resp?.message || 'Failed to transcribe audio.');
+          return;
+        }
+
+        const t = resp.data?.transcript || '';
+        setTranscript(t);
+      } catch (err) {
+        console.error('Audio recording/transcription error:', err);
+        if (err?.status === 401) {
+          setResponse('Your session expired. Please log in again.');
+        } else {
+          setResponse(err?.message || 'Sorry, I could not transcribe that recording.');
+        }
+      } finally {
+        setIsProcessing(false);
+
+        // Stop the mic stream to release the device.
+        if (mediaStreamRef.current) {
+          for (const track of mediaStreamRef.current.getTracks()) track.stop();
+          mediaStreamRef.current = null;
+        }
+      }
+    };
+
+    mediaRecorderRef.current = recorder;
+    recorder.start();
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const startListening = async () => {
+    setTranscript('');
+    setResponse('');
+
+    if (sttMode === 'speech' && recognitionRef.current) {
       recognitionRef.current.start();
+      return;
+    }
+
+    if (sttMode === 'record') {
+      await startRecording();
     }
   };
 
   const stopListening = () => {
-    if (recognitionRef.current) {
+    if (sttMode === 'speech' && recognitionRef.current) {
       recognitionRef.current.stop();
+      return;
+    }
+
+    if (sttMode === 'record') {
+      stopRecording();
     }
   };
 
@@ -84,15 +168,38 @@ const VoiceAssistant = () => {
     })();
   }, []);
 
-  const processVoiceQuery = async () => {
-    if (!transcript.trim()) return;
+  // Cleanup audio resources on unmount.
+  React.useEffect(() => {
+    return () => {
+      try {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
+      } catch {
+        // ignore
+      }
+
+      try {
+        if (mediaStreamRef.current) {
+          for (const track of mediaStreamRef.current.getTracks()) track.stop();
+          mediaStreamRef.current = null;
+        }
+      } catch {
+        // ignore
+      }
+    };
+  }, []);
+
+  const submitQuery = async (queryText) => {
+    const q = String(queryText || '').trim();
+    if (!q) return;
 
     setIsProcessing(true);
     try {
-      const result = await apiService.processVoiceQuery(transcript);
+      const result = await apiService.processVoiceQuery(q);
 
       if (!result?.success) {
-        setResponse(result?.message || 'Failed to process your voice query.');
+        setResponse(result?.message || 'Failed to process your query.');
         return;
       }
 
@@ -100,16 +207,28 @@ const VoiceAssistant = () => {
       setResponse(aiResponse);
 
       // Keep local history in sync immediately; backend history will also record it.
-      setHistory((prev) => [{ query: transcript, response: aiResponse }, ...prev].slice(0, 20));
+      setHistory((prev) => [{ query: q, response: aiResponse }, ...prev].slice(0, 20));
 
       // Text-to-speech
       speakResponse(aiResponse);
     } catch (error) {
-      console.error('Error processing voice query:', error);
-      setResponse('Sorry, I encountered an error processing your request.');
+      console.error('Error processing query:', error);
+      if (error?.status === 401) {
+        setResponse('Your session expired. Please log in again.');
+      } else {
+        setResponse(error?.message || 'Sorry, I encountered an error processing your request.');
+      }
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const processVoiceQuery = async () => {
+    await submitQuery(transcript);
+  };
+
+  const processTextQuery = async () => {
+    await submitQuery(textQuery);
   };
 
   const speakResponse = (text) => {
@@ -123,23 +242,64 @@ const VoiceAssistant = () => {
     }
   };
 
+  const isCapturing = isListening || isRecording;
+
   return (
     <div style={styles.container}>
       {/* Mic Button */}
       <div style={styles.micSection}>
         <button
+          type="button"
           style={{
             ...styles.micButton,
-            ...(isListening ? styles.micButtonActive : {})
+            ...(isCapturing ? styles.micButtonActive : {})
           }}
-          onClick={isListening ? stopListening : startListening}
-          disabled={isProcessing}
+          onClick={isCapturing ? stopListening : startListening}
+          disabled={isProcessing || sttMode === 'none'}
+          title={
+            sttMode === 'none'
+              ? 'Speech input not supported in this browser'
+              : sttMode === 'record'
+                ? 'Record audio, then transcribe'
+                : 'Speak to transcribe'
+          }
         >
-          <span style={styles.micIcon}>{isListening ? '🎙️' : '🎤'}</span>
+          <span style={styles.micIcon}>{isCapturing ? '🎙️' : '🎤'}</span>
         </button>
         <p style={styles.micStatus}>
-          {isListening ? 'Listening...' : 'Tap to ask'}
+          {sttMode === 'none'
+            ? 'Speech input not available'
+            : isListening
+              ? 'Listening...'
+              : isRecording
+                ? 'Recording...'
+                : 'Tap to ask'}
         </p>
+      </div>
+
+      {/* Text Input Fallback */}
+      <div style={styles.textInputRow}>
+        <input
+          style={styles.textInput}
+          placeholder="Type a question (optional)"
+          value={textQuery}
+          onChange={(e) => setTextQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              processTextQuery();
+            }
+          }}
+          disabled={isProcessing}
+        />
+        <button
+          type="button"
+          style={styles.textSendButton}
+          onClick={processTextQuery}
+          disabled={isProcessing || !textQuery.trim()}
+        >
+          Send
+        </button>
       </div>
 
       {/* Transcript Display */}
@@ -148,6 +308,7 @@ const VoiceAssistant = () => {
           <p style={styles.transcriptLabel}>You said:</p>
           <p style={styles.transcriptText}>{transcript}</p>
           <button
+            type="button"
             style={styles.submitButton}
             onClick={processVoiceQuery}
             disabled={isProcessing}
@@ -223,6 +384,30 @@ const styles = {
     color: '#9ca3af',
     fontSize: '14px',
     fontWeight: '600',
+  },
+  textInputRow: {
+    display: 'flex',
+    gap: '12px',
+    margin: '0 auto 24px',
+    maxWidth: '720px',
+  },
+  textInput: {
+    flex: 1,
+    padding: '12px 14px',
+    borderRadius: '10px',
+    border: '1px solid rgba(0, 212, 255, 0.15)',
+    background: 'rgba(255, 255, 255, 0.03)',
+    color: '#ffffff',
+    outline: 'none',
+  },
+  textSendButton: {
+    background: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    color: '#e5e7eb',
+    padding: '10px 16px',
+    borderRadius: '10px',
+    fontWeight: '600',
+    cursor: 'pointer',
   },
   transcriptBox: {
     background: 'rgba(0, 212, 255, 0.05)',

@@ -1,0 +1,15 @@
+"""
+API Keys Configuration Template
+Copy this file to api_keys.py and fill in your API keys
+IMPORTANT: Never commit api_keys.py to version control
+"""
+
+# OpenWeatherMap API Key
+# Get your free API key at: https://openweathermap.org/api
+# Free tier: 60 calls/minute, 1,000,000 calls/month
+OPENWEATHER_API_KEY = "your_openweathermap_api_key_here"
+
+# Optional: Hugging Face API Token (for inference API if local models are slow)
+# Get it at: https://huggingface.co/settings/tokens
+# Free tier available
+HUGGINGFACE_API_TOKEN = "your_huggingface_token_here"  # Optional

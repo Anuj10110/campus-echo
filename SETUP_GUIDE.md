@@ -81,6 +81,11 @@ FRONTEND_URL=http://localhost:5173
 # Rate Limiting
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=5
+
+# Optional: OpenAI key for audio transcription fallback (used by /api/voice/transcribe)
+# Do NOT commit real keys. If you ever accidentally share a key, rotate/revoke it immediately.
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_STT_MODEL=whisper-1
 ```
 
 #### Setting up Gmail for Email Service

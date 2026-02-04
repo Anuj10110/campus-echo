@@ -5,7 +5,8 @@ class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
     this.accessToken = null;
-    this.refreshToken = null;
+    // IMPORTANT: don't name this "refreshToken" (it would shadow the refreshToken() method)
+    this.refreshTokenValue = null;
   }
 
   setAccessToken(token) {
@@ -23,17 +24,17 @@ class ApiService {
   }
 
   setRefreshToken(token) {
-    this.refreshToken = token;
+    this.refreshTokenValue = token;
     if (token) {
       localStorage.setItem('refreshToken', token);
     }
   }
 
   getRefreshToken() {
-    if (!this.refreshToken) {
-      this.refreshToken = localStorage.getItem('refreshToken');
+    if (!this.refreshTokenValue) {
+      this.refreshTokenValue = localStorage.getItem('refreshToken');
     }
-    return this.refreshToken;
+    return this.refreshTokenValue;
   }
 
   clearAccessToken() {
@@ -42,7 +43,7 @@ class ApiService {
   }
 
   clearRefreshToken() {
-    this.refreshToken = null;
+    this.refreshTokenValue = null;
     localStorage.removeItem('refreshToken');
   }
 
@@ -53,8 +54,12 @@ class ApiService {
 
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+
+    const isFormData =
+      typeof FormData !== 'undefined' && options.body instanceof FormData;
+
     const headers = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers,
     };
 
@@ -69,7 +74,10 @@ class ApiService {
       credentials: 'include', // Include cookies for refresh token
     };
 
-    if (options.body && typeof options.body === 'object') {
+    if (isFormData) {
+      // Let the browser set multipart boundaries.
+      config.body = options.body;
+    } else if (options.body && typeof options.body === 'object') {
       config.body = JSON.stringify(options.body);
     }
 
@@ -273,6 +281,16 @@ class ApiService {
     return this.request('/voice/query', {
       method: 'POST',
       body: { query },
+    });
+  }
+
+  async transcribeAudio(audioBlob, filename = 'recording.webm') {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, filename);
+
+    return this.request('/voice/transcribe', {
+      method: 'POST',
+      body: formData,
     });
   }
 
